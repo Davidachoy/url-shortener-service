@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, Integer
 from sqlalchemy.sql import func
-from app.db.base import Base
+from app.db.base_class import Base
 
 class URL(Base):
     __tablename__ = "urls"

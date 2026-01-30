@@ -1,6 +1,5 @@
-from sqlalchemy.orm import DeclarativeBase
+# Este archivo es SOLO para que Alembic vea todos los models
+from app.db.base_class import Base
 
-class Base(DeclarativeBase):
-    pass
-
-# Todos tus models heredarán de esta clase
+# Importar todos los models aquí
+from app.db.models.url import URL  # noqa: F401

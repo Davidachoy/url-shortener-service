@@ -10,9 +10,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    DATABASE_URL: str = ""
-    
-    REDIS_URL: str = ""
+    DATABASE_URL: str
+    REDIS_URL: str
     
     class Config:
         env_file = ".env"
