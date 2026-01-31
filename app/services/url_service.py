@@ -7,31 +7,38 @@ from sqlalchemy import select
 import httpx
 from ipaddress import ip_address
 from urllib.parse import urlparse, urlunparse
-
+from app.core.config import settings
+from app.core.exceptions import (
+    InvalidURLException,
+    URLNotReachableException,
+    URLExpiredException,
+    CustomCodeAlreadyExistsException,
+    CodeGenerationError,
+    InvalidCustomCodeError
+)
 
 async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
 
-    #1. Validate url 
+    #1. Validate url
+    parsed = urlparse(str(url.url))
 
-    if not url.url.scheme or not url.url.netloc:
-        raise HTTPException(status_code=400, detail="Invalid URL")
+    if not parsed.scheme or not parsed.netloc:
+        raise InvalidURLException()
     try:
         response = httpx.head(str(url.url), allow_redirects=True, timeout=10)
         if response.status_code != 200:
-            raise HTTPException(status_code=400, detail=f"URL is not reachable (status code: {response.status_code})")
+            raise URLNotReachableException(details={"status_code": response.status_code})
     except httpx.RequestError as e:
-        raise HTTPException(status_code=400, detail=f"URL is not reachable (error: {str(e)})")
+        raise URLNotReachableException(details={"error": str(e)})
 
-    host = url.url.netloc.split(':')[0]
+    host = parsed.netloc.split(':')[0]
     try:
         ip = ip_address(host)
         if ip.is_private or ip.is_loopback or ip.is_link_local:
-            raise HTTPException(status_code=400, detail="URL is not allowed (private IP)")
+            raise URLNotReachableException(details={"reason": "private IP"})
     except ValueError:
         if host.lower() in ('localhost', '127.0.0.1', '::1'):
-            raise HTTPException(status_code=400, detail="URL is not allowed (localhost)")
-
-    parsed = urlparse(str(url.url))
+            raise URLNotReachableException(details={"reason": "localhost"})
 
     netloc = parsed.netloc.lower()
     if netloc.startswith('www.'):
@@ -45,10 +52,10 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
 
     if url.custom_code:
         if not is_valid_custom_code(url.custom_code):
-            raise HTTPException(status_code=400, detail="Invalid custom code")
+            raise InvalidCustomCodeError(code=url.custom_code, reason="Invalid format")
         existing_url = await db.execute(select(URL).where(URL.short_code == url.custom_code))
         if existing_url.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Custom code already exists")
+            raise CustomCodeAlreadyExistsException(code=url.custom_code)
     else:
         for _ in range(3):
             code = generate_code()
@@ -58,11 +65,23 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
                     url.custom_code = code
                     break
         else:
-            raise HTTPException(status_code=400, detail="Failed to generate a unique custom code")
+            raise CodeGenerationError(retries=3)
     
     #3. Create URL in the database
     new_url = URL(
         short_code=url.custom_code,
         target_url=normalized,
-        expires_at=url.expires_at
     )
+    db.add(new_url)
+    await db.commit()
+    await db.refresh(new_url)
+    return URLResponse(
+        id=new_url.id,
+        short_code=new_url.short_code,
+        target_url=new_url.target_url,
+        short_url=f"{settings.SHORT_URL_BASE}/{new_url.short_code}",
+        created_at=new_url.created_at,
+        clicks=new_url.clicks
+    )
+
+    
