@@ -25,7 +25,7 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
     if not parsed.scheme or not parsed.netloc:
         raise InvalidURLException()
     try:
-        response = httpx.head(str(url.url), allow_redirects=True, timeout=10)
+        response = httpx.head(str(url.url), follow_redirects=True, timeout=10)
         if response.status_code != 200:
             raise URLNotReachableException(details={"status_code": response.status_code})
     except httpx.RequestError as e:
@@ -81,7 +81,7 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
         target_url=new_url.target_url,
         short_url=f"{settings.SHORT_URL_BASE}/{new_url.short_code}",
         created_at=new_url.created_at,
-        clicks=new_url.clicks
+        clicks=0
     )
 
     

@@ -1,0 +1,209 @@
+{
+	"info": {
+		"_postman_id": "url-shortener-api",
+		"name": "URL Shortener API",
+		"description": "High-performance URL shortener with analytics",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				},
+				"description": "Check if the API is running"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - Simple",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://www.google.com\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Shorten a URL with auto-generated code"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - Custom Code",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://github.com\",\n  \"custom_code\": \"github\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Shorten a URL with custom code"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - With Expiration",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://example.com\",\n  \"custom_code\": \"temp\",\n  \"expires_at\": \"2026-12-31T23:59:59Z\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Shorten a URL with expiration date"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - Invalid URL",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"not-a-valid-url\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Test validation - should return 422"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - Duplicate Custom Code",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://example.com\",\n  \"custom_code\": \"duplicate-test\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Try to create URL with duplicate custom code - should return 400"
+			},
+			"response": []
+		},
+		{
+			"name": "Shorten URL - Reserved Code",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"url\": \"https://example.com\",\n  \"custom_code\": \"admin\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/shorten",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"shorten"
+					]
+				},
+				"description": "Try to use reserved code - should return 400"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}
