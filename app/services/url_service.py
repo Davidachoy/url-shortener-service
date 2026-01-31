@@ -1,6 +1,7 @@
 from app.schemas.url import URLCreate, URLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from app.services.cache_service import set_url_cache
 from app.utils.code_generator import generate_code, is_valid_custom_code
 from app.db.models.url import URL
 from sqlalchemy import select
@@ -14,7 +15,9 @@ from app.core.exceptions import (
     URLExpiredException,
     CustomCodeAlreadyExistsException,
     CodeGenerationError,
-    InvalidCustomCodeError
+    InvalidCustomCodeError,
+    URLShortenerException,
+    URLNotFoundException
 )
 
 async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
@@ -44,7 +47,8 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
     if netloc.startswith('www.'):
         netloc = netloc[4:]
 
-    path = parsed.path.rstrip('/') if parsed.path != '/' else parsed.path
+    # Remove trailing slash from path (including root path)
+    path = parsed.path.rstrip('/') or ''
 
     normalized = urlunparse((parsed.scheme, netloc, path, parsed.params, parsed.query, parsed.fragment))
 
@@ -71,10 +75,15 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
     new_url = URL(
         short_code=url.custom_code,
         target_url=normalized,
+        expires_at=url.expires_at  # Can be None (never expires)
     )
     db.add(new_url)
     await db.commit()
     await db.refresh(new_url)
+
+    #4. Set URL cache
+    await set_url_cache(new_url.short_code, new_url.target_url, settings.CACHE_TTL_SECONDS)
+
     return URLResponse(
         id=new_url.id,
         short_code=new_url.short_code,
@@ -84,4 +93,17 @@ async def create_short_url(url: URLCreate, db: AsyncSession) -> URLResponse:
         clicks=0
     )
 
+
+async def get_url_by_code(short_code: str, db: AsyncSession) -> URL | None:
+    """
+    Get URL by short code.
     
+    Args:
+        short_code: The short code to look up
+        db: Database session
+        
+    Returns:
+        URL model if found, None otherwise
+    """
+    result = await db.execute(select(URL).where(URL.short_code == short_code))
+    return result.scalar_one_or_none()

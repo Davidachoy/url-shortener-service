@@ -21,5 +21,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
 
+    #redis
+    REDIS_MAX_CONNECTIONS: int = 10
+    CACHE_TTL_SECONDS: int = 86400  # 24 horas
+    
 # Singleton pattern - crear UNA instancia
 settings = Settings()

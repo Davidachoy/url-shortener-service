@@ -9,4 +9,5 @@ class URL(Base):
     short_code = Column(String(10), unique=True, index=True, nullable=False)
     target_url = Column(String(2048), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # None = never expires
     

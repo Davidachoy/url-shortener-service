@@ -52,6 +52,26 @@ Fully restarts the project: cleans Docker, starts it again, and runs migrations.
 ./scripts/restart.sh
 ```
 
+### `check-db.py`
+Python script to check database and Redis cache contents. Shows recent URLs, cache status, and connection health.
+
+```bash
+# Check both database and Redis
+python scripts/check-db.py
+
+# Show more/fewer URLs
+python scripts/check-db.py --limit 20
+
+# Check database only
+python scripts/check-db.py --db-only
+
+# Check Redis only
+python scripts/check-db.py --redis-only
+
+# Help
+python scripts/check-db.py --help
+```
+
 ## Making scripts executable
 
 If the scripts are not executable, run:

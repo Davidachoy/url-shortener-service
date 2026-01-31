@@ -22,6 +22,9 @@ class URLExpiredException(URLShortenerException):
     """Exception raised for URLs that have expired."""
     pass
 
+class URLNotFoundException(URLShortenerException):
+    """Exception raised for URLs that are not found."""
+    pass
 
 # ============================================
 # Code Generation Exceptions
@@ -57,3 +60,12 @@ class InvalidCustomCodeError(URLShortenerException):
             message=f"Invalid custom code '{code}': {reason}",
             details={"code": code, "reason": reason}
         )
+
+
+# ============================================
+# Cache Exceptions
+# ============================================
+
+class CacheError(URLShortenerException):
+    """Exception raised for Redis cache errors."""
+    pass
