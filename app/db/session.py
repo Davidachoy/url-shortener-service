@@ -1,22 +1,22 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
 
-# Crear engine (conexión a DB)
-# check_same_thread=False solo para SQLite, no afecta Postgres
+# Create engine (DB connection)
+# check_same_thread=False is for SQLite only, does not affect Postgres
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,  # Log SQL queries en desarrollo
+    echo=settings.DEBUG,  # Log SQL queries in development
     future=True
 )
 
-# Session factory - crear sesiones por request
+# Session factory - create sessions per request
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False
 )
 
-# Dependency para inyectar session en endpoints
+# Dependency to inject session into endpoints
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:

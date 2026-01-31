@@ -8,40 +8,40 @@ from app.utils.code_generator import (
 
 
 def test_generar_1000_codigos_unicidad():
-    """Generar 1000 códigos y verificar que todos son únicos."""
+    """Generate 1000 codes and verify all are unique."""
     codes = [generate_code() for _ in range(1000)]
-    assert len(codes) == len(set(codes)), "Todos los códigos deben ser únicos"
+    assert len(codes) == len(set(codes)), "All codes must be unique"
 
 
 @pytest.mark.parametrize("length", [4, 6, 8, 10])
 def test_longitud_correcta(length: int):
-    """El código generado tiene la longitud especificada."""
+    """Generated code has the specified length."""
     code = generate_code(length=length)
     assert len(code) == length
 
 
 def test_solo_caracteres_validos():
-    """Todos los caracteres del código están en el alfabeto permitido."""
+    """All code characters are in the allowed alphabet."""
     for _ in range(100):
         code = generate_code(length=8)
         for char in code:
-            assert char in SAFE_CHARACTERS, f"Carácter '{char}' no permitido en {code}"
+            assert char in SAFE_CHARACTERS, f"Character '{char}' not allowed in {code}"
 
 
 def test_custom_code_valido_pasa():
-    """Un custom code válido pasa la validación."""
+    """A valid custom code passes validation."""
     assert is_valid_custom_code("abc123") is True
     assert is_valid_custom_code("my-link") is True
     assert is_valid_custom_code("xYz9") is True
 
 
 def test_custom_code_con_espacios_falla():
-    """Custom code con espacios falla."""
+    """Custom code with spaces fails."""
     assert is_valid_custom_code("ab c") is False
     assert is_valid_custom_code("a b c") is False
     assert is_valid_custom_code(" ") is False
 
 
 def test_custom_code_admin_falla():
-    """Custom code 'admin' (reservado) falla."""
+    """Custom code 'admin' (reserved) fails."""
     assert is_valid_custom_code("admin") is False

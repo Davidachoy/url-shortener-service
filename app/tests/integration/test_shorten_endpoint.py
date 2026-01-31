@@ -11,7 +11,7 @@ from app.db.models.url import URL
 from app.api.deps import get_db
 
 
-# URL de base de datos de test en memoria con SQLite
+# In-memory test database URL (SQLite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
@@ -24,13 +24,13 @@ async def test_engine():
         future=True,
     )
 
-    # Crear todas las tablas
+    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
-    # Limpiar
+    # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
@@ -59,7 +59,7 @@ async def client(db_session):
     # Override dependency
     app.dependency_overrides[get_db] = override_get_db
     
-    # Mock httpx.head para que no haga llamadas reales
+    # Mock httpx.head so it does not make real calls
     with patch("app.services.url_service.httpx.head") as mock_head:
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -71,7 +71,7 @@ async def client(db_session):
         ) as ac:
             yield ac
     
-    # Limpiar override
+    # Clear override
     app.dependency_overrides.clear()
 
 
@@ -101,19 +101,19 @@ async def test_response_tiene_campos_correctos(client):
     assert response.status_code == 201
     data = response.json()
     
-    # Verificar campos requeridos
+    # Assert required fields
     required_fields = ["id", "short_code", "target_url", "short_url", "created_at", "clicks"]
     for field in required_fields:
         assert field in data, f"Missing field: {field}"
     
-    # Verificar tipos
+    # Assert types
     assert isinstance(data["id"], int)
     assert isinstance(data["short_code"], str)
     assert isinstance(data["target_url"], str)
     assert isinstance(data["short_url"], str)
     assert isinstance(data["clicks"], int)
     
-    # Verificar que short_url contiene el short_code
+    # Assert short_url contains short_code
     assert data["short_code"] in data["short_url"]
 
 
@@ -137,7 +137,7 @@ async def test_custom_code_se_respeta(client):
 @pytest.mark.asyncio
 async def test_custom_code_duplicado_retorna_409(client):
     """Test: Duplicate custom code returns 409."""
-    # Crear primera URL
+    # Create first URL
     response1 = await client.post(
         "/api/v1/shorten",
         json={
@@ -147,7 +147,7 @@ async def test_custom_code_duplicado_retorna_409(client):
     )
     assert response1.status_code == 201
     
-    # Intentar crear otra con mismo código
+    # Try to create another with same code
     response2 = await client.post(
         "/api/v1/shorten",
         json={
@@ -156,8 +156,8 @@ async def test_custom_code_duplicado_retorna_409(client):
         }
     )
     
-    # Debería fallar (el endpoint maneja CustomCodeAlreadyExistsException)
-    assert response2.status_code == 400  # O el status que manejes para este error
+    # Should fail (endpoint handles CustomCodeAlreadyExistsException)
+    assert response2.status_code == 400
     assert "already exists" in response2.json()["detail"].lower() or "duplicate" in response2.json()["detail"].lower()
 
 
@@ -166,10 +166,10 @@ async def test_url_sin_protocolo_retorna_422(client):
     """Test: URL without protocol returns 422 (Pydantic validation error)."""
     response = await client.post(
         "/api/v1/shorten",
-        json={"url": "google.com"}  # Sin https://
+        json={"url": "google.com"}  # Without https://
     )
     
-    # Pydantic debería rechazar esto antes de llegar al endpoint
+    # Pydantic should reject this before reaching the endpoint
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
@@ -178,7 +178,7 @@ async def test_url_sin_protocolo_retorna_422(client):
 @pytest.mark.asyncio
 async def test_verificar_url_se_guardo_en_db(client, db_session):
     """Test: Verify that URL is saved in DB."""
-    # Crear URL via endpoint
+    # Create URL via endpoint
     response = await client.post(
         "/api/v1/shorten",
         json={
@@ -190,13 +190,13 @@ async def test_verificar_url_se_guardo_en_db(client, db_session):
     assert response.status_code == 201
     data = response.json()
     
-    # Consultar directamente la DB
+    # Query DB directly
     query_result = await db_session.execute(
         select(URL).where(URL.short_code == "dbtest")
     )
     saved_url = query_result.scalar_one_or_none()
     
-    # Verificar que se guardó
+    # Assert it was saved
     assert saved_url is not None
     assert saved_url.short_code == "dbtest"
     assert "testsite.com" in saved_url.target_url

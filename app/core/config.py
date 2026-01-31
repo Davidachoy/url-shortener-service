@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     #redis
     REDIS_MAX_CONNECTIONS: int = 10
-    CACHE_TTL_SECONDS: int = 86400  # 24 horas
-    
-# Singleton pattern - crear UNA instancia
+    CACHE_TTL_SECONDS: int = 86400  # 24 hours
+
+# Singleton pattern - single instance
 settings = Settings()

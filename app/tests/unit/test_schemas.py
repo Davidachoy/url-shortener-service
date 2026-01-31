@@ -5,21 +5,21 @@ from app.schemas.url import URLCreate
 
 
 def test_url_valida_pasa_validacion():
-    """URL válida pasa validación."""
+    """Valid URL passes validation."""
     data = URLCreate(url="https://google.com")
     assert data.url.scheme == "https"
     assert "google.com" in str(data.url)
 
 
 def test_url_invalida_falla_validacion():
-    """URL inválida falla validación."""
+    """Invalid URL fails validation."""
     with pytest.raises(ValidationError) as exc_info:
         URLCreate(url="not-a-url")
     assert "url" in str(exc_info.value).lower() or "Input should be a valid URL" in str(exc_info.value)
 
 
 def test_custom_code_con_caracteres_especiales_falla():
-    """custom_code con caracteres especiales falla."""
+    """custom_code with special characters fails."""
     with pytest.raises(ValidationError):
         URLCreate(url="https://example.com", custom_code="ab@c")
     with pytest.raises(ValidationError):
@@ -27,6 +27,6 @@ def test_custom_code_con_caracteres_especiales_falla():
 
 
 def test_custom_code_muy_largo_falla():
-    """custom_code muy largo falla (max 20)."""
+    """custom_code too long fails (max 20)."""
     with pytest.raises(ValidationError):
         URLCreate(url="https://example.com", custom_code="a" * 21)

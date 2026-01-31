@@ -4,8 +4,8 @@ from app.api.v1.endpoints import shorten
 
 api_router = APIRouter()
 
-# Incluir routers de cada módulo
+# Include routers from each module
 api_router.include_router(
     shorten.router,
-    tags=["urls"]  # Para organizar en Swagger docs
+    tags=["urls"]  # For Swagger docs organization
 )

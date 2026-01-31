@@ -12,7 +12,7 @@ from app.schemas.url import URLCreate
 from app.core.exceptions import CustomCodeAlreadyExistsException
 
 
-# URL de base de datos de test en memoria con SQLite
+# In-memory test database URL (SQLite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
@@ -25,13 +25,13 @@ async def test_engine():
         future=True,
     )
 
-    # Crear todas las tablas
+    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
-    # Limpiar
+    # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
@@ -62,15 +62,15 @@ def mock_httpx_success():
 
 @pytest.mark.asyncio
 async def test_crear_url_end_to_end_con_test_database(db_session, mock_httpx_success):
-    """Test: Crear URL end-to-end con test database."""
-    # Crear request
+    """Test: Create URL end-to-end with test database."""
+    # Create request
     url_data = URLCreate(url="https://example.com")
 
-    # Mock generate_code para código predecible
+    # Mock generate_code for predictable code
     with patch("app.services.url_service.generate_code", return_value="test123"):
         result = await create_short_url(url_data, db_session)
 
-    # Verificar respuesta
+    # Assert response
     assert result.short_code == "test123"
     assert "example.com" in str(result.target_url)
     assert result.id is not None
@@ -79,13 +79,13 @@ async def test_crear_url_end_to_end_con_test_database(db_session, mock_httpx_suc
 
 @pytest.mark.asyncio
 async def test_verificar_que_se_guarda_en_db(db_session, mock_httpx_success):
-    """Test: Verificar que la URL se guarda en DB."""
-    # Crear URL
+    """Test: Verify that URL is saved in DB."""
+    # Create URL
     url_data = URLCreate(url="https://google.com", custom_code="mylink")
 
     result = await create_short_url(url_data, db_session)
 
-    # Verificar que existe en la DB
+    # Assert it exists in DB
     query_result = await db_session.execute(
         select(URL).where(URL.short_code == "mylink")
     )
@@ -99,14 +99,14 @@ async def test_verificar_que_se_guarda_en_db(db_session, mock_httpx_success):
 
 @pytest.mark.asyncio
 async def test_dos_requests_mismo_custom_code_segunda_falla(db_session, mock_httpx_success):
-    """Test: Dos requests con mismo custom code, segunda falla."""
-    # Primera request - debe funcionar
+    """Test: Two requests with same custom code, second fails."""
+    # First request - should succeed
     url_data_1 = URLCreate(url="https://first.com", custom_code="duplicate")
     result_1 = await create_short_url(url_data_1, db_session)
 
     assert result_1.short_code == "duplicate"
 
-    # Segunda request con mismo código - debe fallar
+    # Second request with same code - should fail
     url_data_2 = URLCreate(url="https://second.com", custom_code="duplicate")
 
     with pytest.raises(CustomCodeAlreadyExistsException) as exc_info:
@@ -114,31 +114,31 @@ async def test_dos_requests_mismo_custom_code_segunda_falla(db_session, mock_htt
 
     assert exc_info.value.code == "duplicate"
 
-    # Verificar que solo existe una URL en la DB con ese código
+    # Assert only one URL exists in DB with that code
     query_result = await db_session.execute(
         select(URL).where(URL.short_code == "duplicate")
     )
     all_urls = query_result.scalars().all()
 
     assert len(all_urls) == 1
-    # El servicio normaliza la URL sin trailing slash en la raíz
+    # Service normalizes URL without trailing slash at root
     assert all_urls[0].target_url.rstrip("/") == "https://first.com"
 
 
 @pytest.mark.asyncio
 async def test_crear_multiples_urls_diferentes(db_session, mock_httpx_success):
-    """Test bonus: Crear múltiples URLs y verificar que todas se guardan."""
+    """Test bonus: Create multiple URLs and verify all are saved."""
     urls_data = [
         URLCreate(url="https://example1.com", custom_code="code1"),
         URLCreate(url="https://example2.com", custom_code="code2"),
         URLCreate(url="https://example3.com", custom_code="code3"),
     ]
 
-    # Crear todas las URLs
+    # Create all URLs
     for url_data in urls_data:
         await create_short_url(url_data, db_session)
 
-    # Verificar que todas están en la DB
+    # Assert all are in DB
     query_result = await db_session.execute(select(URL))
     all_urls = query_result.scalars().all()
 

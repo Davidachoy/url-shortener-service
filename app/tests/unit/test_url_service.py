@@ -32,14 +32,14 @@ def mock_httpx_success():
 
 
 @pytest.mark.asyncio
-async def test_crear_url_con_codigo_random(mock_db_session, mock_httpx_success):
-    """Test: Crear URL con código random (mock DB)."""
-    # Setup: mock DB query que retorna None (código disponible)
+async def test_create_url_with_random_code(mock_db_session, mock_httpx_success):
+    """Test: Create URL with random code (mock DB)."""
+    # Setup: mock DB query returns None (code available)
     mock_result = MagicMock()
     mock_result.scalar_one_or_none = MagicMock(return_value=None)
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-    # Mock refresh para simular que el objeto tiene ID y campos de DB
+    # Mock refresh to simulate object has ID and DB fields
     async def mock_refresh_side_effect(obj):
         obj.id = 1
         obj.created_at = datetime.now()
@@ -47,10 +47,10 @@ async def test_crear_url_con_codigo_random(mock_db_session, mock_httpx_success):
 
     mock_db_session.refresh.side_effect = mock_refresh_side_effect
 
-    # Crear request
+    # Create request
     url_data = URLCreate(url="https://google.com")
 
-    # Mock generate_code para que devuelva un código conocido
+    # Mock generate_code to return a known code
     with patch("app.services.url_service.generate_code", return_value="abc123"):
         result = await create_short_url(url_data, mock_db_session)
 
@@ -63,9 +63,9 @@ async def test_crear_url_con_codigo_random(mock_db_session, mock_httpx_success):
 
 
 @pytest.mark.asyncio
-async def test_crear_url_con_custom_code_disponible(mock_db_session, mock_httpx_success):
-    """Test: Crear URL con custom code disponible."""
-    # Setup: mock DB query que retorna None (custom code disponible)
+async def test_create_url_with_custom_code_available(mock_db_session, mock_httpx_success):
+    """Test: Create URL with custom code available."""
+    # Setup: mock DB query returns None (custom code available)
     mock_result = MagicMock()
     mock_result.scalar_one_or_none = MagicMock(return_value=None)
     mock_db_session.execute = AsyncMock(return_value=mock_result)
@@ -77,29 +77,29 @@ async def test_crear_url_con_custom_code_disponible(mock_db_session, mock_httpx_
 
     mock_db_session.refresh.side_effect = mock_refresh_side_effect
 
-    # Crear request con custom code
+    # Create request with custom code
     url_data = URLCreate(url="https://example.com", custom_code="my-link")
 
     result = await create_short_url(url_data, mock_db_session)
 
-    # Verificar que usa el custom code
+    # Assert custom code is used
     assert result.short_code == "my-link"
     assert result.id == 2
 
 
 @pytest.mark.asyncio
-async def test_custom_code_duplicado_lanza_exception(mock_db_session, mock_httpx_success):
-    """Test: Custom code duplicado lanza exception."""
-    # Setup: mock DB query que retorna un objeto (código ya existe)
+async def test_duplicate_custom_code_raises_exception(mock_db_session, mock_httpx_success):
+    """Test: Duplicate custom code raises exception."""
+    # Setup: mock DB query returns an object (code already exists)
     mock_existing_url = MagicMock()
     mock_result = MagicMock()
     mock_result.scalar_one_or_none = MagicMock(return_value=mock_existing_url)
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-    # Crear request con custom code que ya existe
+    # Create request with custom code that already exists
     url_data = URLCreate(url="https://example.com", custom_code="existing")
 
-    # Verificar que lanza CustomCodeAlreadyExistsException
+    # Assert CustomCodeAlreadyExistsException is raised
     with pytest.raises(CustomCodeAlreadyExistsException) as exc_info:
         await create_short_url(url_data, mock_db_session)
 
@@ -107,9 +107,9 @@ async def test_custom_code_duplicado_lanza_exception(mock_db_session, mock_httpx
 
 
 @pytest.mark.asyncio
-async def test_url_invalida_lanza_exception(mock_db_session):
-    """Test: URL inválida (localhost) lanza exception."""
-    # Mock httpx.head para que retorne 200; el servicio rechaza localhost en la validación de host
+async def test_invalid_url_raises_exception(mock_db_session):
+    """Test: Invalid URL (localhost) raises exception."""
+    # Mock httpx.head to return 200; service rejects localhost in host validation
     with patch("app.services.url_service.httpx.head") as mock_head:
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -124,16 +124,16 @@ async def test_url_invalida_lanza_exception(mock_db_session):
 
 
 @pytest.mark.asyncio
-async def test_colision_codigo_random_retries_correctamente(mock_db_session, mock_httpx_success):
-    """Test: Colisión en código random retries correctamente."""
-    # Setup: primera llamada retorna código existente, segunda retorna None (disponible)
+async def test_random_code_collision_retries_correctly(mock_db_session, mock_httpx_success):
+    """Test: Random code collision retries correctly."""
+    # Setup: first call returns existing code, second returns None (available)
     mock_result_exists = MagicMock()
-    mock_result_exists.scalar_one_or_none = MagicMock(return_value=MagicMock())  # Existe
+    mock_result_exists.scalar_one_or_none = MagicMock(return_value=MagicMock())  # Exists
 
     mock_result_available = MagicMock()
-    mock_result_available.scalar_one_or_none = MagicMock(return_value=None)  # Disponible
+    mock_result_available.scalar_one_or_none = MagicMock(return_value=None)  # Available
 
-    # Simular: primer código existe, segundo disponible (AsyncMock devuelve cada valor al await)
+    # Simulate: first code exists, second available (AsyncMock returns each value on await)
     mock_db_session.execute = AsyncMock(side_effect=[mock_result_exists, mock_result_available])
 
     async def mock_refresh_side_effect(obj):
@@ -145,27 +145,27 @@ async def test_colision_codigo_random_retries_correctamente(mock_db_session, moc
 
     url_data = URLCreate(url="https://example.org")
 
-    # Mock generate_code para devolver códigos específicos
+    # Mock generate_code to return specific codes
     codes = ["collision", "success"]
     with patch("app.services.url_service.generate_code", side_effect=codes):
         result = await create_short_url(url_data, mock_db_session)
 
-    # Verificar que usa el segundo código (después del retry)
+    # Assert second code is used (after retry)
     assert result.short_code == "success"
-    assert mock_db_session.execute.call_count == 2  # 2 queries (uno por cada código generado)
+    assert mock_db_session.execute.call_count == 2  # 2 queries (one per generated code)
 
 
 @pytest.mark.asyncio
-async def test_codigo_random_falla_tras_max_retries(mock_db_session, mock_httpx_success):
-    """Test: Si todos los códigos generados colisionan, lanza CodeGenerationError."""
-    # Setup: todas las queries retornan que el código existe
+async def test_random_code_fails_after_max_retries(mock_db_session, mock_httpx_success):
+    """Test: If all generated codes collide, raises CodeGenerationError."""
+    # Setup: all queries return that code exists
     mock_result_exists = MagicMock()
     mock_result_exists.scalar_one_or_none = MagicMock(return_value=MagicMock())
     mock_db_session.execute = AsyncMock(return_value=mock_result_exists)
 
     url_data = URLCreate(url="https://example.com")
 
-    # Todos los códigos generados colisionan
+    # All generated codes collide
     with patch("app.services.url_service.generate_code", return_value="taken"):
         with pytest.raises(CodeGenerationError) as exc_info:
             await create_short_url(url_data, mock_db_session)

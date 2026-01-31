@@ -72,7 +72,7 @@ async def client(db_session):
 
 @pytest.mark.asyncio
 async def test_valid_code_returns_307(client, db_session):
-    """Test: Código válido retorna 307."""
+    """Test: Valid code returns 307."""
     # Create URL in test DB
     url = URL(
         short_code="abc123",
@@ -88,7 +88,7 @@ async def test_valid_code_returns_307(client, db_session):
 
 @pytest.mark.asyncio
 async def test_location_header_is_correct(client, db_session):
-    """Test: Location header es correcto."""
+    """Test: Location header is correct."""
     target = "https://google.com/search?q=test"
     url = URL(
         short_code="xyz789",
@@ -105,7 +105,7 @@ async def test_location_header_is_correct(client, db_session):
 
 @pytest.mark.asyncio
 async def test_nonexistent_code_returns_404(client):
-    """Test: Código inexistente retorna 404."""
+    """Test: Nonexistent code returns 404."""
     response = await client.get("/NoExiste999")
 
     assert response.status_code == 404
@@ -116,7 +116,7 @@ async def test_nonexistent_code_returns_404(client):
 
 @pytest.mark.asyncio
 async def test_expired_url_returns_410(client, db_session):
-    """Test: URL expirada retorna 410."""
+    """Test: Expired URL returns 410."""
     expired_at = datetime.now(timezone.utc) - timedelta(hours=1)
     url = URL(
         short_code="expired",

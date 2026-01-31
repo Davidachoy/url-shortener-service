@@ -24,7 +24,7 @@ from app.db.base import Base
 # this is the Alembic Config object
 config = context.config
 
-# Leer DATABASE_URL del .env
+# Read DATABASE_URL from .env
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
