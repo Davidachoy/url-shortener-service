@@ -76,7 +76,7 @@ async def client(db_session):
 
 
 @pytest.mark.asyncio
-async def test_post_url_valida_retorna_201(client):
+async def test_post_valid_url_returns_201(client):
     """Test: POST with valid URL returns 201."""
     response = await client.post(
         "/api/v1/shorten",
@@ -91,7 +91,7 @@ async def test_post_url_valida_retorna_201(client):
 
 
 @pytest.mark.asyncio
-async def test_response_tiene_campos_correctos(client):
+async def test_response_has_correct_fields(client):
     """Test: Response has correct fields."""
     response = await client.post(
         "/api/v1/shorten",
@@ -118,7 +118,7 @@ async def test_response_tiene_campos_correctos(client):
 
 
 @pytest.mark.asyncio
-async def test_custom_code_se_respeta(client):
+async def test_custom_code_is_respected(client):
     """Test: Custom code is respected."""
     response = await client.post(
         "/api/v1/shorten",
@@ -135,7 +135,7 @@ async def test_custom_code_se_respeta(client):
 
 
 @pytest.mark.asyncio
-async def test_custom_code_duplicado_retorna_409(client):
+async def test_duplicate_custom_code_returns_409(client):
     """Test: Duplicate custom code returns 409."""
     # Create first URL
     response1 = await client.post(
@@ -162,7 +162,7 @@ async def test_custom_code_duplicado_retorna_409(client):
 
 
 @pytest.mark.asyncio
-async def test_url_sin_protocolo_retorna_422(client):
+async def test_url_without_protocol_returns_422(client):
     """Test: URL without protocol returns 422 (Pydantic validation error)."""
     response = await client.post(
         "/api/v1/shorten",
@@ -176,7 +176,7 @@ async def test_url_sin_protocolo_retorna_422(client):
 
 
 @pytest.mark.asyncio
-async def test_verificar_url_se_guardo_en_db(client, db_session):
+async def test_verify_url_saved_in_db(client, db_session):
     """Test: Verify that URL is saved in DB."""
     # Create URL via endpoint
     response = await client.post(

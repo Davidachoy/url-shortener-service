@@ -54,7 +54,7 @@ async def test_create_url_with_random_code(mock_db_session, mock_httpx_success):
     with patch("app.services.url_service.generate_code", return_value="abc123"):
         result = await create_short_url(url_data, mock_db_session)
 
-    # Verificar
+    # Assert
     assert result.short_code == "abc123"
     assert "google.com" in str(result.target_url)
     assert result.id == 1

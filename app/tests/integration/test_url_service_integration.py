@@ -61,7 +61,7 @@ def mock_httpx_success():
 
 
 @pytest.mark.asyncio
-async def test_crear_url_end_to_end_con_test_database(db_session, mock_httpx_success):
+async def test_create_url_end_to_end_with_test_database(db_session, mock_httpx_success):
     """Test: Create URL end-to-end with test database."""
     # Create request
     url_data = URLCreate(url="https://example.com")
@@ -78,7 +78,7 @@ async def test_crear_url_end_to_end_con_test_database(db_session, mock_httpx_suc
 
 
 @pytest.mark.asyncio
-async def test_verificar_que_se_guarda_en_db(db_session, mock_httpx_success):
+async def test_verify_url_saved_in_db(db_session, mock_httpx_success):
     """Test: Verify that URL is saved in DB."""
     # Create URL
     url_data = URLCreate(url="https://google.com", custom_code="mylink")
@@ -98,7 +98,7 @@ async def test_verificar_que_se_guarda_en_db(db_session, mock_httpx_success):
 
 
 @pytest.mark.asyncio
-async def test_dos_requests_mismo_custom_code_segunda_falla(db_session, mock_httpx_success):
+async def test_two_requests_same_custom_code_second_fails(db_session, mock_httpx_success):
     """Test: Two requests with same custom code, second fails."""
     # First request - should succeed
     url_data_1 = URLCreate(url="https://first.com", custom_code="duplicate")
@@ -126,7 +126,7 @@ async def test_dos_requests_mismo_custom_code_segunda_falla(db_session, mock_htt
 
 
 @pytest.mark.asyncio
-async def test_crear_multiples_urls_diferentes(db_session, mock_httpx_success):
+async def test_create_multiple_urls_different(db_session, mock_httpx_success):
     """Test bonus: Create multiple URLs and verify all are saved."""
     urls_data = [
         URLCreate(url="https://example1.com", custom_code="code1"),
