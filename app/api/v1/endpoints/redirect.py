@@ -1,6 +1,6 @@
 import logging
 import time
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from app.api.deps import get_db
 from app.services.url_service import get_url_by_code
 from app.services.cache_service import get_url_cache, set_url_cache, increment_url_clicks
+from app.services import click_service
 from app.core.config import settings
 
 router = APIRouter()
@@ -15,7 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/{short_code}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-async def redirect_to_url(short_code: str, db: AsyncSession = Depends(get_db)):
+async def redirect_to_url(
+    short_code: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
     """
     Redirect to the target URL for the given short code.
 
@@ -26,16 +32,19 @@ async def redirect_to_url(short_code: str, db: AsyncSession = Depends(get_db)):
       The app does not crash; redirects work but are slower.
 
     Flow:
-    1. Try to get URL from Redis cache (on error → treat as MISS).
-    2. If not in cache, get from database.
+    1. Try to get URL from Redis cache (optional fast-path check).
+    2. Always get from database (need url_id for click tracking + expires_at for expiration check).
     3. Check if URL exists (404 if not).
     4. Check if URL has expired (410 if expired).
-    5. Optionally cache for next time (on error → skip, redirect still works).
-    6. Increment click counter (on error → skip).
-    7. Return 307 redirect to target URL.
+    5. Optionally cache for next time if MISS (on error → skip, redirect still works).
+    6. Track click in Postgres via background task (runs after response is sent).
+    7. Increment click counter in Redis (fire-and-forget).
+    8. Return 307 redirect to target URL.
 
     Args:
         short_code: The short code to redirect
+        request: FastAPI Request (for client IP)
+        background_tasks: FastAPI BackgroundTasks (for async click tracking)
         db: Database session
         
     Returns:
@@ -49,57 +58,64 @@ async def redirect_to_url(short_code: str, db: AsyncSession = Depends(get_db)):
     timestamps["start"] = time.perf_counter()
 
     # 1. Try cache first (fast path). On Redis failure → treat as MISS (degraded mode).
-    target_url = None
+    cached_url = None
     try:
-        target_url = await get_url_cache(short_code)
+        cached_url = await get_url_cache(short_code)
     except Exception:
         # Redis down or error → cold cache / degraded mode: fall through to Postgres
         pass
 
     timestamps["after_cache_check"] = time.perf_counter()
-    cache_hit = target_url is not None
+    cache_hit = cached_url is not None
     db_query_ms: float | None = None
 
-    # 2. If not in cache (MISS or Redis down), get from database
-    if not target_url:
-        t_before_db = time.perf_counter()
-        url_obj = await get_url_by_code(short_code, db)
-        timestamps["after_db_query"] = time.perf_counter()
-        db_query_ms = (timestamps["after_db_query"] - t_before_db) * 1000
+    # 2. Always get from database (need url_obj.id for click tracking + expiration check)
+    t_before_db = time.perf_counter()
+    url_obj = await get_url_by_code(short_code, db)
+    timestamps["after_db_query"] = time.perf_counter()
+    db_query_ms = (timestamps["after_db_query"] - t_before_db) * 1000
 
-        # 3. Check if URL exists
-        if not url_obj:
+    # 3. Check if URL exists
+    if not url_obj:
+        timestamps["end"] = time.perf_counter()
+        _log_redirect_latency(short_code, cache_hit, timestamps, db_query_ms)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Short code '{short_code}' not found"
+        )
+
+    # 4. Check if URL has expired
+    if url_obj.expires_at:
+        now = datetime.now(timezone.utc)
+        expires_at = url_obj.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at <= now:
             timestamps["end"] = time.perf_counter()
             _log_redirect_latency(short_code, cache_hit, timestamps, db_query_ms)
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Short code '{short_code}' not found"
+                status_code=status.HTTP_410_GONE,
+                detail=f"This short URL expired on {expires_at.isoformat()}"
             )
 
-        # 4. Check if URL has expired
-        if url_obj.expires_at:
-            now = datetime.now(timezone.utc)
-            expires_at = url_obj.expires_at
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
+    target_url = url_obj.target_url
 
-            if expires_at <= now:
-                timestamps["end"] = time.perf_counter()
-                _log_redirect_latency(short_code, cache_hit, timestamps, db_query_ms)
-                raise HTTPException(
-                    status_code=status.HTTP_410_GONE,
-                    detail=f"This short URL expired on {expires_at.isoformat()}"
-                )
-
-        target_url = url_obj.target_url
-
-        # Cache for next time. On Redis failure → skip cache, redirect still works.
+    # 5. Cache for next time if it was a MISS. On Redis failure → skip cache, redirect still works.
+    if not cache_hit:
         try:
             await set_url_cache(short_code, target_url, settings.CACHE_TTL_SECONDS)
         except Exception:
             pass  # Degraded mode: don't fail the redirect
 
-    # 5. Increment click counter (fire-and-forget; don't fail redirect on error)
+    # 6. Track click in Postgres (background task - runs after response is sent)
+    background_tasks.add_task(
+        click_service.track_click,
+        url_id=url_obj.id,
+        ip_address=request.client.host
+    )
+
+    # 7. Increment click counter in Redis (fire-and-forget)
     try:
         await increment_url_clicks(short_code)
     except Exception:
@@ -108,7 +124,7 @@ async def redirect_to_url(short_code: str, db: AsyncSession = Depends(get_db)):
     timestamps["end"] = time.perf_counter()
     _log_redirect_latency(short_code, cache_hit, timestamps, db_query_ms)
 
-    # 6. Redirect to target URL
+    # 8. Redirect to target URL
     return RedirectResponse(url=target_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 

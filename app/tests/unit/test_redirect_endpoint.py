@@ -52,13 +52,16 @@ async def client(db_session):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Mock cache so redirect always hits DB (no Redis needed)
+    # Mock cache and click tracking so tests don't need Redis/real Postgres
     with patch(
         "app.api.v1.endpoints.redirect.get_url_cache",
         new_callable=AsyncMock,
         return_value=None,
     ), patch(
         "app.api.v1.endpoints.redirect.increment_url_clicks",
+        new_callable=AsyncMock,
+    ), patch(
+        "app.services.click_service.track_click",
         new_callable=AsyncMock,
     ):
         async with AsyncClient(
